@@ -1,9 +1,8 @@
 name: Build APK
 on:
+  workflow_dispatch:
   push:
     branches: [ main ]
-  workflow_dispatch:
-
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -15,37 +14,31 @@ jobs:
           java-version: '17'
       - uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.35.4'
           channel: 'stable'
-          cache: true
-      - name: Fix project structure - FORCE REBUILD ANDROID
+          flutter-version: '3.24.3'
+      - name: Fix project structure
         run: |
-          mkdir -p /tmp/backup/lib
-          cp pubspec.yaml /tmp/backup/pubspec.yaml
-          cp pubspec.lock /tmp/backup/pubspec.lock 2>/dev/null || true
-          # lib ho to lib se lo, warna root se lo
-          if [ -d lib ]; then cp -r lib/. /tmp/backup/lib/; fi
-          if [ -f main.dart ]; then cp main.dart /tmp/backup/lib/main.dart; fi
-          if [ -f lib/main.dart ]; then cp lib/main.dart /tmp/backup/lib/main.dart; fi
-          for d in state screens models services widgets utils; do
-            if [ -d "lib/$d" ]; then cp -r "lib/$d" /tmp/backup/lib/; fi
-            if [ -d "$d" ]; then cp -r "$d" /tmp/backup/lib/; fi
-          done
-          echo "=== BACKUP ==="
-          find /tmp/backup -type f | sort
-          echo "Deleting old broken android folder..."
-          rm -rf android ios web macos windows linux .dart_tool build
-          flutter create . --project-name family_group --org com.family.group --overwrite
-          cp /tmp/backup/pubspec.yaml pubspec.yaml
-          cp /tmp/backup/pubspec.lock pubspec.lock 2>/dev/null || true
-          rm -rf lib
           mkdir -p lib
-          cp -r /tmp/backup/lib/. lib/
-          echo "=== FINAL LIB ==="
-          find lib -type f | sort
-      - run: flutter pub get
-      - run: flutter analyze || true
-      - run: flutter build apk --release
+          # ساری dart فائلیں lib میں لے جاؤ
+          if ls *.dart 1> /dev/null 2>&1; then mv *.dart lib/; fi
+          # غلط import ٹھیک کرو - state/ screens/ ہٹا دو
+          sed -i "s|state/||g; s|screens/||g; s|models/||g; s|widgets/||g; s|lib/||g" lib/*.dart
+          # اگر pubspec نہیں ہے تو بناؤ
+          if [ ! -f pubspec.yaml ]; then
+            flutter create --template app --project-name family_group8 --org com.family.group .
+            rm -f lib/main.dart
+            # ہماری فائلیں واپس lib میں رکھو - پہلے سے موجود ہیں
+          fi
+          # اگر android فولڈر نہیں ہے تو بناؤ
+          if [ ! -d android ]; then
+            flutter create --template app --project-name family_group8 --org com.family.group .
+          fi
+          ls -R lib
+          cat lib/main.dart | head -n 10
+      - name: Build APK
+        run: |
+          flutter pub get
+          flutter build apk --release
       - uses: actions/upload-artifact@v4
         with:
           name: app-release-apk
