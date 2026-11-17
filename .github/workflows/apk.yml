@@ -2,31 +2,67 @@ name: Build APK
 on:
   push:
     branches: [ main ]
+  workflow_dispatch:
+
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: subosito/flutter-action@v2
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Java 17
+        uses: actions/setup-java@v4
         with:
-          channel: 'stable'
+          distribution: 'temurin'
           java-version: '17'
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.35.4'
+          channel: 'stable'
+          cache: true
+
       - name: Fix project structure
         run: |
+          echo "=== BEFORE ==="
+          ls -R | head -n 100
           mkdir -p /tmp/backup
           cp pubspec.yaml /tmp/backup/pubspec.yaml
-          cp pubspec.lock /tmp/backup/pubspec.lock || true
-          cp main.dart /tmp/backup/main.dart || true
-          for d in state screens models services widgets utils; do if [ -d $d ]; then cp -r $d /tmp/backup/$d; fi; done
-          flutter create . --project-name family_group --org com.family.group
-          cp /tmp/backup/pubspec.yaml pubspec.yaml
-          cp /tmp/backup/pubspec.lock pubspec.lock || true
-          mkdir -p lib
-          cp /tmp/backup/main.dart lib/main.dart
-          for d in state screens models services widgets utils; do if [ -d /tmp/backup/$d ]; then cp -r /tmp/backup/$d lib/$d; fi; done
-      - run: flutter pub get
-      - run: flutter build apk --release
-      - uses: actions/upload-artifact@v4
+          cp pubspec.lock /tmp/backup/pubspec.lock 2>/dev/null || true
+          cp main.dart /tmp/backup/main.dart 2>/dev/null || true
+          for d in state screens models services widgets utils; do
+            if [ -d "$d" ]; then cp -r "$d" /tmp/backup/; fi
+          done
+          if [ ! -f lib/main.dart ]; then
+            echo "lib missing, creating project..."
+            flutter create . --project-name family_group --org com.family.group --overwrite
+            cp /tmp/backup/pubspec.yaml pubspec.yaml
+            cp /tmp/backup/pubspec.lock pubspec.lock 2>/dev/null || true
+            mkdir -p lib
+            cp /tmp/backup/main.dart lib/main.dart
+            for d in state screens models services widgets utils; do
+              if [ -d "/tmp/backup/$d" ]; then cp -r "/tmp/backup/$d" lib/; fi
+            done
+          fi
+          echo "=== AFTER - FILES IN LIB ==="
+          find lib -type f | sort
+          echo "=== PUBSPEC ==="
+          cat pubspec.yaml
+
+      - name: Get packages
+        run: flutter pub get
+
+      - name: Check Dart errors
+        run: flutter analyze || true
+
+      - name: Build APK
+        run: flutter build apk --release --verbose
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
         with:
           name: app-release-apk
           path: build/app/outputs/flutter-apk/app-release.apk
+          if-no-files-found: error
