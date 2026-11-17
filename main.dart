@@ -9,40 +9,53 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   final s = AppState();
   await s.init();
-  runApp(ChangeNotifierProvider.value(value: s, child: const FamilyApp()));
+  runApp(ChangeNotifierProvider.value(
+    value: s,
+    child: const MyApp(),
+  ));
 }
 
 ThemeData _theme(Brightness b) => ThemeData(
+      brightness: b,
       useMaterial3: true,
       colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFF1B6B5A), brightness: b),
+        seedColor: const Color(0xFF0B6B3A),
+        brightness: b,
+      ),
       cardTheme: CardThemeData(
-          elevation: 0,
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16))),
+        elevation: 0,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
+      ),
       inputDecorationTheme: InputDecorationTheme(
-          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12))),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
+      ),
     );
 
-class FamilyApp extends StatelessWidget {
-  const FamilyApp({super.key});
+class MyApp extends StatelessWidget {
+  const MyApp({super.key});
   @override
   Widget build(BuildContext context) {
-    final s = context.watch<AppState>();
+    final s = Provider.of<AppState>(context);
     return MaterialApp(
-      title: 'Family Group',
       debugShowCheckedModeBanner: false,
-      themeMode: s.themeMode,
+      title: 'Family Group',
       theme: _theme(Brightness.light),
       darkTheme: _theme(Brightness.dark),
-      locale: Locale(s.lang),
-      supportedLocales: const [Locale('ur'), Locale('en')],
+      themeMode: ThemeMode.system,
       localizationsDelegates: const [
         GlobalMaterialLocalizations.delegate,
         GlobalWidgetsLocalizations.delegate,
         GlobalCupertinoLocalizations.delegate,
       ],
-      home: s.loggedIn ? const HomeScreen() : const LoginScreen(),
+      supportedLocales: const [
+        Locale('ur', 'PK'),
+        Locale('en', 'US'),
+      ],
+      home: s.loggedIn ? HomeScreen() : LoginScreen(),
     );
   }
 }
