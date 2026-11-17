@@ -20,18 +20,28 @@ jobs:
           cache: true
       - name: Fix project structure - FORCE REBUILD ANDROID
         run: |
-          mkdir -p /tmp/backup
+          mkdir -p /tmp/backup/lib
           cp pubspec.yaml /tmp/backup/pubspec.yaml
           cp pubspec.lock /tmp/backup/pubspec.lock 2>/dev/null || true
-          cp -r lib /tmp/backup/lib
+          # lib ho to lib se lo, warna root se lo
+          if [ -d lib ]; then cp -r lib/. /tmp/backup/lib/; fi
+          if [ -f main.dart ]; then cp main.dart /tmp/backup/lib/main.dart; fi
+          if [ -f lib/main.dart ]; then cp lib/main.dart /tmp/backup/lib/main.dart; fi
+          for d in state screens models services widgets utils; do
+            if [ -d "lib/$d" ]; then cp -r "lib/$d" /tmp/backup/lib/; fi
+            if [ -d "$d" ]; then cp -r "$d" /tmp/backup/lib/; fi
+          done
+          echo "=== BACKUP ==="
+          find /tmp/backup -type f | sort
           echo "Deleting old broken android folder..."
           rm -rf android ios web macos windows linux .dart_tool build
           flutter create . --project-name family_group --org com.family.group --overwrite
           cp /tmp/backup/pubspec.yaml pubspec.yaml
           cp /tmp/backup/pubspec.lock pubspec.lock 2>/dev/null || true
           rm -rf lib
-          cp -r /tmp/backup/lib lib
-          echo "=== FILES IN LIB ==="
+          mkdir -p lib
+          cp -r /tmp/backup/lib/. lib/
+          echo "=== FINAL LIB ==="
           find lib -type f | sort
       - run: flutter pub get
       - run: flutter analyze || true
